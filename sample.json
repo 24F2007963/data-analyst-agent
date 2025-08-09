@@ -1,0 +1,54 @@
+{
+  "AdditionalData": {
+    "data": "The provided data schema and question require multiple steps of analysis, including: 1) a query to find the high court with the most cases from 2019 to 2022, 2) a query to calculate the delay between registration and decision dates for a specific court, and 3) a regression analysis on the delay data by year to determine the slope. The dataset is a large collection of Indian High Court judgments stored in parquet files on S3. DuckDB is the appropriate tool for querying this data directly from S3. The 'court' and 'year' columns are used for filtering and grouping. The 'decision_date' and 'date_of_registration' columns are used to calculate the delay. DuckDB's `REGR_SLOPE` function can be used for the regression analysis. A scatter plot will be generated to visualize the relationship between the year and the delay in days."
+  },
+  "inputs": [
+    {
+      "name": "judgments",
+      "source": "parquet_s3",
+      "url": "s3://indian-high-court-judgments/metadata/parquet/year=*/court=*/bench=*/metadata.parquet?s3_region=ap-south-1",
+      "data": null,
+      "table_index": null
+    }
+  ],
+  "transforms": [
+    {
+      "target": "cases_by_court",
+      "op": "duckdb_query",
+      "args": {
+        "query": "SELECT court, COUNT(*) as num_cases FROM judgments WHERE year >= 2019 AND year <= 2022 GROUP BY court ORDER BY num_cases DESC LIMIT 1"
+      }
+    },
+    {
+      "target": "delay_data",
+      "op": "duckdb_query",
+      "args": {
+        "query": "SELECT year, (decision_date::DATE - date_of_registration::DATE) as delay_days FROM judgments WHERE court='33_10' AND decision_date IS NOT NULL AND date_of_registration IS NOT NULL"
+      }
+    },
+    {
+      "target": "regression_data",
+      "op": "regression",
+      "args": {
+        "data": "delay_data",
+        "x": "year",
+        "y": "delay_days"
+      }
+    }
+  ],
+  "charts": [
+    {
+      "table": "delay_data",
+      "kind": "scatter",
+      "x": "year",
+      "y": "delay_days",
+      "title": "Year vs. Delay in Days for Court 33_10"
+    }
+  ],
+  "answer": {
+    "type": "regression_summary",
+    "table": "regression_data",
+    "columns": ["slope", "r2", "pvalue"]
+  },
+  "result_table": "regression_data"
+}

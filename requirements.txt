@@ -1,0 +1,5 @@
+Flask
+duckdb
+matplotlib
+requests
+beautifulsoup4
